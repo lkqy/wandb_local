@@ -1,0 +1,59 @@
+{
+  "projects": [
+    {
+      "name": "computer-vision",
+      "total_experiments": 1,
+      "running_experiments": 0,
+      "finished_experiments": 1,
+      "latest_experiment": {
+        "name": "resnet50-cifar10-classification",
+        "start_time": "2025-11-07T22:19:16.492464",
+        "status": "finished"
+      }
+    },
+    {
+      "name": "natural-language-processing",
+      "total_experiments": 1,
+      "running_experiments": 0,
+      "finished_experiments": 1,
+      "latest_experiment": {
+        "name": "transformer-imdb-sentiment",
+        "start_time": "2025-11-07T22:19:26.603242",
+        "status": "finished"
+      }
+    },
+    {
+      "name": "audio-processing",
+      "total_experiments": 1,
+      "running_experiments": 0,
+      "finished_experiments": 1,
+      "latest_experiment": {
+        "name": "cnn-speech-commands",
+        "start_time": "2025-11-07T22:19:34.475302",
+        "status": "finished"
+      }
+    },
+    {
+      "name": "reinforcement-learning",
+      "total_experiments": 1,
+      "running_experiments": 0,
+      "finished_experiments": 1,
+      "latest_experiment": {
+        "name": "dqn-cartpole-control",
+        "start_time": "2025-11-07T22:19:48.997783",
+        "status": "finished"
+      }
+    },
+    {
+      "name": "test-workflow",
+      "total_experiments": 2,
+      "running_experiments": 0,
+      "finished_experiments": 2,
+      "latest_experiment": {
+        "name": "test-experiment-1762525416",
+        "start_time": "2025-11-07T22:23:36.875346",
+        "status": "finished"
+      }
+    }
+  ]
+}

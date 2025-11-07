@@ -1,0 +1,203 @@
+{
+  "experiments": [
+    {
+      "run_id": "computer-vision_resnet50-cifar10-classification_1762525156",
+      "project": "computer-vision",
+      "name": "resnet50-cifar10-classification",
+      "status": "finished",
+      "start_time": "2025-11-07T22:19:16.492464",
+      "end_time": "2025-11-07T22:20:16.492464",
+      "config": {
+        "model_type": "resnet50",
+        "dataset": "cifar10",
+        "batch_size": 64,
+        "learning_rate": 0.001,
+        "epochs": 20,
+        "optimizer": "adam",
+        "weight_decay": 0.0001
+      },
+      "summary": {
+        "accuracy": 0.9234,
+        "loss": 0.2156,
+        "val_accuracy": 0.8945,
+        "val_loss": 0.3456,
+        "final_accuracy": 0.9234
+      },
+      "history": [
+        {"step": 0, "data": {"epoch": 0, "loss": 2.3, "accuracy": 0.12, "val_loss": 2.5, "val_accuracy": 0.15}},
+        {"step": 1, "data": {"epoch": 1, "loss": 1.8, "accuracy": 0.35, "val_loss": 1.9, "val_accuracy": 0.38}},
+        {"step": 2, "data": {"epoch": 2, "loss": 1.2, "accuracy": 0.52, "val_loss": 1.4, "val_accuracy": 0.48}},
+        {"step": 3, "data": {"epoch": 3, "loss": 0.9, "accuracy": 0.68, "val_loss": 1.1, "val_accuracy": 0.62}},
+        {"step": 4, "data": {"epoch": 4, "loss": 0.7, "accuracy": 0.78, "val_loss": 0.9, "val_accuracy": 0.72}}
+      ],
+      "tags": ["image-classification", "resnet", "cifar10", "demo"],
+      "notes": "ResNet50在CIFAR10数据集上的图像分类实验",
+      "path": "/mnt/okcomputer/output/../experiments/computer-vision/resnet50-cifar10-classification",
+      "duration": 3600.0,
+      "metrics": {
+        "steps": [0, 1, 2, 3, 4],
+        "loss": [2.3, 1.8, 1.2, 0.9, 0.7],
+        "accuracy": [0.12, 0.35, 0.52, 0.68, 0.78],
+        "val_loss": [2.5, 1.9, 1.4, 1.1, 0.9],
+        "val_accuracy": [0.15, 0.38, 0.48, 0.62, 0.72]
+      },
+      "media_files": [
+        {
+          "name": "sample_image_0.png",
+          "path": "images/sample_image_0.png",
+          "type": "image",
+          "size": 1024,
+          "modified": 1731036556,
+          "url": "/api/experiments/computer-vision_resnet50-cifar10-classification_1762525156/files/media/images/sample_image_0.png"
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "run_id": "natural-language-processing_transformer-imdb-sentiment_1762525166",
+      "project": "natural-language-processing",
+      "name": "transformer-imdb-sentiment",
+      "status": "finished",
+      "start_time": "2025-11-07T22:19:26.603242",
+      "end_time": "2025-11-07T22:20:26.603242",
+      "config": {
+        "model_type": "transformer",
+        "dataset": "imdb",
+        "max_length": 512,
+        "batch_size": 32,
+        "learning_rate": 5e-05,
+        "epochs": 15,
+        "warmup_steps": 500
+      },
+      "summary": {
+        "accuracy": 0.9432,
+        "precision": 0.9387,
+        "recall": 0.9456,
+        "f1_score": 0.9421,
+        "val_accuracy": 0.9234,
+        "val_f1": 0.9189
+      },
+      "history": [
+        {"step": 0, "data": {"epoch": 0, "train_loss": 1.8, "train_accuracy": 0.45, "val_loss": 1.9, "val_accuracy": 0.42}},
+        {"step": 1, "data": {"epoch": 1, "train_loss": 1.4, "train_accuracy": 0.62, "val_loss": 1.5, "val_accuracy": 0.58}},
+        {"step": 2, "data": {"epoch": 2, "train_loss": 1.1, "train_accuracy": 0.74, "val_loss": 1.2, "val_accuracy": 0.68}},
+        {"step": 3, "data": {"epoch": 3, "train_loss": 0.8, "train_accuracy": 0.82, "val_loss": 0.9, "val_accuracy": 0.78}},
+        {"step": 4, "data": {"epoch": 4, "train_loss": 0.6, "train_accuracy": 0.88, "val_loss": 0.7, "val_accuracy": 0.85}}
+      ],
+      "tags": ["nlp", "transformer", "sentiment-analysis", "imdb", "demo"],
+      "notes": "Transformer在IMDB情感分析任务上的实验",
+      "path": "/mnt/okcomputer/output/../experiments/natural-language-processing/transformer-imdb-sentiment",
+      "duration": 3600.0,
+      "metrics": {
+        "steps": [0, 1, 2, 3, 4],
+        "train_loss": [1.8, 1.4, 1.1, 0.8, 0.6],
+        "train_accuracy": [0.45, 0.62, 0.74, 0.82, 0.88],
+        "val_loss": [1.9, 1.5, 1.2, 0.9, 0.7],
+        "val_accuracy": [0.42, 0.58, 0.68, 0.78, 0.85]
+      },
+      "media_files": [],
+      "artifacts": []
+    },
+    {
+      "run_id": "audio-processing_cnn-speech-commands_1762525174",
+      "project": "audio-processing",
+      "name": "cnn-speech-commands",
+      "status": "finished",
+      "start_time": "2025-11-07T22:19:34.475302",
+      "end_time": "2025-11-07T22:20:34.475302",
+      "config": {
+        "model_type": "cnn",
+        "dataset": "speech_commands",
+        "sample_rate": 16000,
+        "n_mels": 128,
+        "batch_size": 128,
+        "learning_rate": 0.01,
+        "epochs": 25
+      },
+      "summary": {
+        "accuracy": 0.9123,
+        "val_accuracy": 0.8876,
+        "train_loss": 0.2345,
+        "val_loss": 0.3456
+      },
+      "history": [
+        {"step": 0, "data": {"epoch": 0, "train_loss": 2.5, "train_accuracy": 0.25, "val_loss": 2.8, "val_accuracy": 0.22}},
+        {"step": 1, "data": {"epoch": 1, "train_loss": 2.1, "train_accuracy": 0.38, "val_loss": 2.3, "val_accuracy": 0.35}},
+        {"step": 2, "data": {"epoch": 2, "train_loss": 1.7, "train_accuracy": 0.52, "val_loss": 1.9, "val_accuracy": 0.48}},
+        {"step": 3, "data": {"epoch": 3, "train_loss": 1.3, "train_accuracy": 0.65, "val_loss": 1.5, "val_accuracy": 0.62}},
+        {"step": 4, "data": {"epoch": 4, "train_loss": 1.0, "train_accuracy": 0.75, "val_loss": 1.2, "val_accuracy": 0.72}}
+      ],
+      "tags": ["audio", "cnn", "speech-recognition", "demo"],
+      "notes": "CNN在语音命令识别任务上的实验",
+      "path": "/mnt/okcomputer/output/../experiments/audio-processing/cnn-speech-commands",
+      "duration": 3600.0,
+      "metrics": {
+        "steps": [0, 1, 2, 3, 4],
+        "train_loss": [2.5, 2.1, 1.7, 1.3, 1.0],
+        "train_accuracy": [0.25, 0.38, 0.52, 0.65, 0.75],
+        "val_loss": [2.8, 2.3, 1.9, 1.5, 1.2],
+        "val_accuracy": [0.22, 0.35, 0.48, 0.62, 0.72]
+      },
+      "media_files": [
+        {
+          "name": "audio_sample_0.wav",
+          "path": "audio/audio_sample_0.wav",
+          "type": "audio",
+          "size": 2048,
+          "modified": 1731036574,
+          "url": "/api/experiments/audio-processing_cnn-speech-commands_1762525174/files/media/audio/audio_sample_0.wav"
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "run_id": "reinforcement-learning_dqn-cartpole-control_1762525188",
+      "project": "reinforcement-learning",
+      "name": "dqn-cartpole-control",
+      "status": "finished",
+      "start_time": "2025-11-07T22:19:48.997783",
+      "end_time": "2025-11-07T22:20:48.997783",
+      "config": {
+        "algorithm": "dqn",
+        "environment": "cartpole",
+        "learning_rate": 0.0001,
+        "gamma": 0.99,
+        "epsilon_start": 1.0,
+        "epsilon_end": 0.01,
+        "epsilon_decay": 0.995,
+        "memory_size": 10000,
+        "batch_size": 32,
+        "target_update": 10,
+        "episodes": 1000
+      },
+      "summary": {
+        "final_reward": 195.67,
+        "avg_reward_100": 187.34,
+        "episodes_to_solve": 456,
+        "success_rate": 0.89
+      },
+      "history": [
+        {"step": 0, "data": {"episode": 0, "episode_reward": 12.5, "avg_reward_100": 12.5, "epsilon": 1.0}},
+        {"step": 1, "data": {"episode": 50, "episode_reward": 45.2, "avg_reward_100": 28.9, "epsilon": 0.975}},
+        {"step": 2, "data": {"episode": 100, "episode_reward": 78.6, "avg_reward_100": 52.1, "epsilon": 0.606}},
+        {"step": 3, "data": {"episode": 200, "episode_reward": 125.3, "avg_reward_100": 89.7, "epsilon": 0.366}},
+        {"step": 4, "data": {"episode": 300, "episode_reward": 167.8, "avg_reward_100": 134.2, "epsilon": 0.223}}
+      ],
+      "tags": ["rl", "dqn", "cartpole", "demo"],
+      "notes": "DQN算法在CartPole控制任务上的实验",
+      "path": "/mnt/okcomputer/output/../experiments/reinforcement-learning/dqn-cartpole-control",
+      "duration": 3600.0,
+      "metrics": {
+        "steps": [0, 50, 100, 200, 300],
+        "episode_reward": [12.5, 45.2, 78.6, 125.3, 167.8],
+        "avg_reward_100": [12.5, 28.9, 52.1, 89.7, 134.2],
+        "epsilon": [1.0, 0.975, 0.606, 0.366, 0.223]
+      },
+      "media_files": [],
+      "artifacts": []
+    }
+  ],
+  "total": 5,
+  "limit": 100,
+  "offset": 0
+}
