@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WandB Local Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #10b981; }
+        .status-finished { background-color: #3b82f6; }
+        .status-failed { background-color: #ef4444; }
+        .status-unknown { background-color: #6b7280; }
+        
+        .sidebar {
+            background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+            min-height: 100vh;
+        }
+        
+        .main-content {
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        
+        .experiment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .metric-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        
+        .filter-tag {
+            background: #e2e8f0;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-tag:hover {
+            background: #cbd5e1;
+        }
+        
+        .filter-tag.active {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .search-input {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .comparison-mode {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+        }
+        
+        .comparison-selected {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <div class="text-2xl font-bold text-gray-900">
+                        <span class="text-blue-600">WandB</span> Local
+                    </div>
+                    <div class="ml-4 text-sm text-gray-500">
+                        实验跟踪与可视化平台
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- 实时状态指示器 -->
+                    <div class="flex items-center space-x-2">
+                        <div id="status-indicator" class="status-indicator status-running"></div>
+                        <span id="status-text" class="text-sm text-gray-600">实时同步中</span>
+                    </div>
+                    
+                    <!-- 刷新按钮 -->
+                    <button id="refresh-btn" class="btn-secondary">
+                        <i class="fas fa-sync-alt mr-2"></i>刷新
+                    </button>
+                    
+                    <!-- 对比模式开关 -->
+                    <button id="comparison-toggle" class="btn-secondary">
+                        <i class="fas fa-balance-scale mr-2"></i>对比模式
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex">
+        <!-- 侧边栏 -->
+        <div class="w-64 bg-white shadow-sm min-h-screen">
+            <div class="p-4">
+                <!-- 项目筛选 -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">项目筛选</h3>
+                    <select id="project-filter" class="w-full search-input">
+                        <option value="">所有项目</option>
+                    </select>
+                </div>
+                
+                <!-- 状态筛选 -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">状态筛选</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="status-filter" value="running" checked>
+                            <span class="ml-2 text-sm text-gray-600">运行中</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="status-filter" value="finished" checked>
+                            <span class="ml-2 text-sm text-gray-600">已完成</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="status-filter" value="failed">
+                            <span class="ml-2 text-sm text-gray-600">失败</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 标签筛选 -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">标签筛选</h3>
+                    <div id="tag-filters" class="flex flex-wrap gap-2">
+                        <!-- 动态生成标签筛选器 -->
+                    </div>
+                </div>
+                
+                <!-- 时间范围 -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">时间范围</h3>
+                    <select id="time-filter" class="w-full search-input">
+                        <option value="">所有时间</option>
+                        <option value="1h">最近1小时</option>
+                        <option value="24h">最近24小时</option>
+                        <option value="7d">最近7天</option>
+                        <option value="30d">最近30天</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 p-6">
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="metric-card p-6 rounded-xl">
+                    <div class="metric-value" id="total-experiments">0</div>
+                    <div class="metric-label">总实验数</div>
+                </div>
+                <div class="metric-card p-6 rounded-xl">
+                    <div class="metric-value" id="running-experiments">0</div>
+                    <div class="metric-label">运行中</div>
+                </div>
+                <div class="metric-card p-6 rounded-xl">
+                    <div class="metric-value" id="finished-experiments">0</div>
+                    <div class="metric-label">已完成</div>
+                </div>
+                <div class="metric-card p-6 rounded-xl">
+                    <div class="metric-value" id="total-projects">0</div>
+                    <div class="metric-label">项目数</div>
+                </div>
+            </div>
+
+            <!-- 搜索栏 -->
+            <div class="mb-6">
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            placeholder="搜索实验名称、标签或配置..." 
+                            class="w-full search-input"
+                        >
+                    </div>
+                    <button id="search-btn" class="btn-primary">
+                        <i class="fas fa-search mr-2"></i>搜索
+                    </button>
+                </div>
+            </div>
+
+            <!-- 实验列表 -->
+            <div id="experiments-container">
+                <!-- 加载指示器 -->
+                <div id="loading-indicator" class="text-center py-12 hidden">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">正在加载实验数据...</p>
+                </div>
+                
+                <!-- 实验卡片容器 -->
+                <div id="experiments-grid" class="space-y-4">
+                    <!-- 动态生成实验卡片 -->
+                </div>
+                
+                <!-- 空状态 -->
+                <div id="empty-state" class="text-center py-12 hidden">
+                    <i class="fas fa-flask text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">暂无实验数据</h3>
+                    <p class="text-gray-500 mb-6">开始运行您的第一个实验，数据将自动显示在这里</p>
+                    <button class="btn-primary" onclick="window.location.href='/docs'">
+                        <i class="fas fa-rocket mr-2"></i>查看使用文档
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实验详情模态框 -->
+    <div id="experiment-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl max-w-6xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h2 id="modal-title" class="text-2xl font-bold text-gray-900"></h2>
+                        <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="modal-content" class="p-6">
+                    <!-- 动态生成模态框内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 对比面板 -->
+    <div id="comparison-panel" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 hidden z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">实验对比</h3>
+                <button id="close-comparison" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="comparison-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 动态生成对比内容 -->
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button id="start-comparison" class="btn-primary">
+                    <i class="fas fa-chart-line mr-2"></i>开始对比分析
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

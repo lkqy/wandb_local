@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验详情 - WandB Local</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- ECharts.js -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        .dark-mode .metric-card {
+            background: linear-gradient(135deg, #334155 0%, #475569 100%);
+            color: #f8fafc;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-running { background-color: #10b981; animation: pulse 2s infinite; }
+        .status-finished { background-color: #3b82f6; }
+        .status-failed { background-color: #ef4444; }
+        .status-unknown { background-color: #6b7280; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .chart-container {
+            height: 400px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        
+        .dark-mode .chart-container {
+            background: #334155;
+            color: #f8fafc;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .dark-mode .data-table th,
+        .dark-mode .data-table td {
+            border-bottom: 1px solid #475569;
+        }
+        
+        .data-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .dark-mode .data-table th {
+            background: #334155;
+            color: #f8fafc;
+        }
+        
+        .data-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .dark-mode .data-table tr:hover {
+            background: #475569;
+        }
+        
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .media-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .dark-mode .media-item {
+            background: #475569;
+        }
+        
+        .media-item:hover {
+            transform: scale(1.05);
+        }
+        
+        .media-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab-button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .tab-button:hover {
+            color: #374151;
+        }
+        
+        .dark-mode .tab-button {
+            color: #9ca3af;
+        }
+        
+        .dark-mode .tab-button.active {
+            color: #60a5fa;
+            border-bottom-color: #60a5fa;
+        }
+        
+        .dark-mode .tab-button:hover {
+            color: #f8fafc;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .breadcrumb a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .dark-mode .config-item {
+            border-bottom-color: #475569;
+        }
+        
+        .config-key {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .dark-mode .config-key {
+            color: #f8fafc;
+        }
+        
+        .config-value {
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .dark-mode .config-value {
+            color: #9ca3af;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center">
+                        <a href="/" class="text-2xl font-bold text-gray-900">
+                            <span class="text-blue-600">WandB</span> Local
+                        </a>
+                        <div class="ml-4 text-sm text-gray-500">
+                            实验详情
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- 返回按钮 -->
+                        <a href="/" class="btn-secondary">
+                            <i class="fas fa-arrow-left mr-2"></i>返回仪表板
+                        </a>
+                        
+                        <!-- 深色模式开关 -->
+                        <button @click="toggleDarkMode" class="btn-secondary">
+                            <i :class="darkMode ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容 -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- 加载状态 -->
+            <div v-if="isLoading" class="text-center py-12">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-600">正在加载实验详情...</p>
+            </div>
+            
+            <!-- 错误状态 -->
+            <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                    <span class="text-red-700">{{ error }}</span>
+                </div>
+            </div>
+            
+            <!-- 实验详情内容 -->
+            <div v-if="!isLoading && experiment" class="fade-in">
+                <!-- 面包屑导航 -->
+                <div class="breadcrumb">
+                    <a href="/">仪表板</a>
+                    <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
+                    <a :href="'/experiments?project=' + experiment.project">{{ experiment.project }}</a>
+                    <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
+                    <span class="text-gray-600">{{ experiment.name }}</span>
+                </div>
+                
+                <!-- 实验标题和基本信息 -->
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ experiment.name }}</h1>
+                            <div class="flex items-center space-x-4 text-sm text-gray-600">
+                                <span>项目: {{ experiment.project }}</span>
+                                <span class="flex items-center">
+                                    <span :class="['status-indicator', 'status-' + experiment.status]"></span>
+                                    {{ getStatusText(experiment.status) }}
+                                </span>
+                                <span>ID: {{ experiment.run_id }}</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-sm text-gray-500">
+                            <div>开始时间: {{ formatDate(experiment.start_time) }}</div>
+                            <div>持续时间: {{ formatDuration(experiment.duration) }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 实验注释 -->
+                    <div v-if="experiment.notes" class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-900 mb-2">实验注释</h3>
+                        <p class="text-gray-700">{{ experiment.notes }}</p>
+                    </div>
+                </div>
+                
+                <!-- 标签 -->
+                <div v-if="experiment.tags && experiment.tags.length > 0" class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">标签</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span v-for="tag in experiment.tags" :key="tag" class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                            {{ tag }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 标签页导航 -->
+                <div class="bg-white rounded-xl shadow-sm mb-6">
+                    <div class="border-b border-gray-200 px-6">
+                        <nav class="flex space-x-8">
+                            <button @click="activeTab = 'overview'" 
+                                    :class="['tab-button', activeTab === 'overview' ? 'active' : '']">
+                                概览
+                            </button>
+                            <button @click="activeTab = 'metrics'" 
+                                    :class="['tab-button', activeTab === 'metrics' ? 'active' : '']">
+                                指标
+                            </button>
+                            <button @click="activeTab = 'config'" 
+                                    :class="['tab-button', activeTab === 'config' ? 'active' : '']">
+                                配置
+                            </button>
+                            <button @click="activeTab = 'history'" 
+                                    :class="['tab-button', activeTab === 'history' ? 'active' : '']">
+                                历史数据
+                            </button>
+                            <button @click="activeTab = 'media'" 
+                                    :class="['tab-button', activeTab === 'media' ? 'active' : '']">
+                                媒体文件
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- 标签页内容 -->
+                    <div class="p-6">
+                        <!-- 概览标签页 -->
+                        <div v-if="activeTab === 'overview'" class="space-y-6">
+                            <!-- 关键指标 -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div v-for="(value, key) in experiment.summary" :key="key" class="metric-card p-4 rounded-lg">
+                                    <div class="text-sm text-gray-600">{{ formatLabel(key) }}</div>
+                                    <div class="text-2xl font-bold">{{ formatMetricValue(value) }}</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 训练曲线图 -->
+                            <div class="chart-container" v-if="hasMetrics">
+                                <h3 class="text-lg font-semibold mb-4">训练曲线</h3>
+                                <div ref="chartContainer" style="height: 350px;"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 指标标签页 -->
+                        <div v-if="activeTab === 'metrics'" class="space-y-6">
+                            <div class="chart-container" v-if="hasMetrics">
+                                <h3 class="text-lg font-semibold mb-4">指标趋势</h3>
+                                <div ref="metricsChartContainer" style="height: 400px;"></div>
+                            </div>
+                            
+                            <!-- 指标选择器 -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-semibold mb-3">选择要显示的指标</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    <label v-for="metric in availableMetrics" :key="metric" class="flex items-center">
+                                        <input type="checkbox" v-model="selectedMetrics" :value="metric" class="mr-2">
+                                        <span class="text-sm">{{ formatLabel(metric) }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 配置标签页 -->
+                        <div v-if="activeTab === 'config'" class="space-y-6">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="text-lg font-semibold mb-4">实验配置</h3>
+                                <div v-for="(value, key) in experiment.config" :key="key" class="config-item">
+                                    <span class="config-key">{{ formatLabel(key) }}</span>
+                                    <span class="config-value">{{ formatConfigValue(value) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 历史数据标签页 -->
+                        <div v-if="activeTab === 'history'" class="space-y-6">
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                    <h3 class="text-lg font-semibold">历史数据</h3>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>步骤</th>
+                                                <th>时间</th>
+                                                <th v-for="metric in displayMetrics" :key="metric">
+                                                    {{ formatLabel(metric) }}
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="entry in paginatedHistory" :key="entry.step">
+                                                <td>{{ entry.step }}</td>
+                                                <td>{{ formatDate(entry.timestamp) }}</td>
+                                                <td v-for="metric in displayMetrics" :key="metric">
+                                                    {{ formatMetricValue(entry.data?.[metric]) }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 媒体文件标签页 -->
+                        <div v-if="activeTab === 'media'" class="space-y-6">
+                            <div v-if="experiment.media_files && experiment.media_files.length > 0">
+                                <h3 class="text-lg font-semibold mb-4">媒体文件 ({{ experiment.media_files.length }})</h3>
+                                <div class="media-grid">
+                                    <div v-for="file in experiment.media_files" :key="file.name" 
+                                         class="media-item"
+                                         @click="openMedia(file)">
+                                        <img v-if="file.type === 'image'" :src="file.url" :alt="file.name">
+                                        <div v-else-if="file.type === 'audio'" class="text-center">
+                                            <i class="fas fa-music text-4xl text-blue-500"></i>
+                                            <div class="text-xs mt-2">{{ file.name }}</div>
+                                        </div>
+                                        <div v-else class="text-center">
+                                            <i class="fas fa-file text-4xl text-gray-500"></i>
+                                            <div class="text-xs mt-2">{{ file.name }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div v-else class="text-center py-12">
+                                <i class="fas fa-file-image text-6xl text-gray-300 mb-4"></i>
+                                <h3 class="text-xl font-semibold text-gray-700 mb-2">暂无媒体文件</h3>
+                                <p class="text-gray-500">使用 wandb.Image, wandb.Audio 等API来记录媒体文件</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const isLoading = ref(true);
+                const error = ref(null);
+                const experiment = ref(null);
+                const activeTab = ref('overview');
+                const darkMode = ref(false);
+                const selectedMetrics = ref([]);
+                let chart = null;
+                let metricsChart = null;
+
+                // 获取URL参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const runId = urlParams.get('id');
+
+                // 计算属性
+                const hasMetrics = computed(() => {
+                    return experiment.value && 
+                           experiment.value.metrics && 
+                           Object.keys(experiment.value.metrics).length > 0;
+                });
+
+                const availableMetrics = computed(() => {
+                    if (!experiment.value || !experiment.value.metrics) return [];
+                    return Object.keys(experiment.value.metrics).filter(key => 
+                        key !== 'steps' && experiment.value.metrics[key].length > 0
+                    );
+                });
+
+                const displayMetrics = computed(() => {
+                    return selectedMetrics.value.length > 0 ? 
+                           selectedMetrics.value : 
+                           availableMetrics.value.slice(0, 3);
+                });
+
+                const paginatedHistory = computed(() => {
+                    if (!experiment.value || !experiment.value.history) return [];
+                    return experiment.value.history.slice(-100); // 显示最近100条记录
+                });
+
+                // 方法
+                const loadExperiment = async () => {
+                    if (!runId) {
+                        error.value = '未指定实验ID';
+                        isLoading.value = false;
+                        return;
+                    }
+
+                    try {
+                        // 从静态文件加载实验数据
+                        const response = await fetch('/api/experiments.json');
+                        const data = await response.json();
+                        
+                        const foundExperiment = data.experiments.find(exp => exp.run_id === runId);
+                        
+                        if (foundExperiment) {
+                            experiment.value = foundExperiment;
+                            // 默认选择前几个指标
+                            selectedMetrics.value = availableMetrics.value.slice(0, 3);
+                        } else {
+                            error.value = '未找到指定的实验';
+                        }
+                    } catch (err) {
+                        error.value = '加载实验数据失败: ' + err.message;
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                const toggleDarkMode = () => {
+                    darkMode.value = !darkMode.value;
+                    document.body.classList.toggle('dark-mode', darkMode.value);
+                };
+
+                const getStatusText = (status) => {
+                    const statusMap = {
+                        'running': '运行中',
+                        'finished': '已完成',
+                        'failed': '失败',
+                        'unknown': '未知'
+                    };
+                    return statusMap[status] || status;
+                };
+
+                const formatLabel = (key) => {
+                    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                };
+
+                const formatMetricValue = (value) => {
+                    if (typeof value === 'number') {
+                        if (value < 0.01) {
+                            return value.toExponential(2);
+                        } else if (value < 1) {
+                            return value.toFixed(4);
+                        } else if (value < 100) {
+                            return value.toFixed(2);
+                        } else {
+                            return value.toFixed(0);
+                        }
+                    }
+                    return value || 'N/A';
+                };
+
+                const formatDate = (dateString) => {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN');
+                };
+
+                const formatDuration = (seconds) => {
+                    if (!seconds) return 'N/A';
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    if (hours > 0) {
+                        return `${hours}小时${minutes}分钟`;
+                    } else {
+                        return `${minutes}分钟`;
+                    }
+                };
+
+                const formatConfigValue = (value) => {
+                    if (typeof value === 'object') {
+                        return JSON.stringify(value, null, 2);
+                    }
+                    return String(value);
+                };
+
+                const openMedia = (file) => {
+                    if (file.type === 'image') {
+                        window.open(file.url, '_blank');
+                    } else {
+                        // 下载文件
+                        const link = document.createElement('a');
+                        link.href = file.url;
+                        link.download = file.name;
+                        link.click();
+                    }
+                };
+
+                const renderChart = () => {
+                    if (!hasMetrics.value || !experiment.value) return;
+
+                    nextTick(() => {
+                        const container = document.querySelector('[ref="chartContainer"]');
+                        if (!container) return;
+
+                        if (chart) {
+                            chart.dispose();
+                        }
+
+                        chart = echarts.init(container);
+
+                        const series = displayMetrics.value.map(metric => {
+                            const data = experiment.value.metrics.steps.map((step, index) => [
+                                step, experiment.value.metrics[metric][index]
+                            ]);
+
+                            return {
+                                name: formatLabel(metric),
+                                type: 'line',
+                                data: data,
+                                smooth: true,
+                                symbol: 'none'
+                            };
+                        });
+
+                        const option = {
+                            title: {
+                                text: '训练指标趋势',
+                                left: 'center'
+                            },
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: {
+                                    type: 'cross'
+                                }
+                            },
+                            legend: {
+                                data: displayMetrics.value.map(formatLabel),
+                                bottom: 10
+                            },
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '15%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'value',
+                                name: 'Step'
+                            },
+                            yAxis: {
+                                type: 'value'
+                            },
+                            series: series
+                        };
+
+                        chart.setOption(option);
+                    });
+                };
+
+                const renderMetricsChart = () => {
+                    if (!hasMetrics.value || !experiment.value) return;
+
+                    nextTick(() => {
+                        const container = document.querySelector('[ref="metricsChartContainer"]');
+                        if (!container) return;
+
+                        if (metricsChart) {
+                            metricsChart.dispose();
+                        }
+
+                        metricsChart = echarts.init(container);
+
+                        const series = selectedMetrics.value.map(metric => {
+                            const data = experiment.value.metrics.steps.map((step, index) => [
+                                step, experiment.value.metrics[metric][index]
+                            ]);
+
+                            return {
+                                name: formatLabel(metric),
+                                type: 'line',
+                                data: data,
+                                smooth: true,
+                                symbol: 'circle',
+                                symbolSize: 4
+                            };
+                        });
+
+                        const option = {
+                            title: {
+                                text: '自定义指标图表',
+                                left: 'center'
+                            },
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: {
+                                    type: 'cross'
+                                }
+                            },
+                            legend: {
+                                data: selectedMetrics.value.map(formatLabel),
+                                bottom: 10
+                            },
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '15%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'value',
+                                name: 'Step'
+                            },
+                            yAxis: {
+                                type: 'value'
+                            },
+                            series: series
+                        };
+
+                        metricsChart.setOption(option);
+                    });
+                };
+
+                // 监听指标选择变化
+                watch(selectedMetrics, () => {
+                    if (activeTab.value === 'metrics') {
+                        renderMetricsChart();
+                    }
+                });
+
+                // 监听标签页变化
+                watch(activeTab, (newTab) => {
+                    if (newTab === 'overview') {
+                        renderChart();
+                    } else if (newTab === 'metrics') {
+                        renderMetricsChart();
+                    }
+                });
+
+                // 生命周期
+                onMounted(async () => {
+                    await loadExperiment();
+                    
+                    if (hasMetrics.value) {
+                        renderChart();
+                    }
+                });
+
+                return {
+                    isLoading,
+                    error,
+                    experiment,
+                    activeTab,
+                    darkMode,
+                    selectedMetrics,
+                    hasMetrics,
+                    availableMetrics,
+                    displayMetrics,
+                    paginatedHistory,
+                    toggleDarkMode,
+                    getStatusText,
+                    formatLabel,
+                    formatMetricValue,
+                    formatDate,
+                    formatDuration,
+                    formatConfigValue,
+                    openMedia
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
