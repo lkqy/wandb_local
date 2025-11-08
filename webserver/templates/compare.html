@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验对比 - WandB Local</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #6366f1;
+            --accent-color: #8b5cf6;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #475569;
+        }
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .glass-effect {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.1);
+        }
+        
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .nav-link.active {
+            color: var(--primary-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--primary-color);
+        }
+        
+        .experiment-selector {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        
+        .experiment-selector:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .experiment-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        
+        .experiment-card:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .experiment-card.selected {
+            border-color: var(--primary-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .comparison-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .comparison-table td {
+            color: var(--text-secondary);
+        }
+        
+        .metric-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+        }
+        
+        .metric-cell.best {
+            color: var(--success-color);
+            font-weight: 700;
+        }
+        
+        .metric-cell.worst {
+            color: var(--error-color);
+        }
+        
+        .loading-spinner {
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="glass-effect sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <div class="text-2xl font-bold">
+                        <span class="text-blue-400">WandB</span> <span class="text-gray-300">Local</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- 导航链接 -->
+                    <a href="/" class="nav-link">
+                        <i class="fas fa-tachometer-alt mr-2"></i>仪表板
+                    </a>
+                    <a href="/compare" class="nav-link active">
+                        <i class="fas fa-balance-scale mr-2"></i>对比分析
+                    </a>
+                    
+                    <!-- 返回按钮 -->
+                    <button onclick="history.back()" class="btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>返回
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 页面标题 -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">实验对比分析</h1>
+            <p class="text-gray-400">选择多个实验进行性能对比和分析</p>
+        </div>
+
+        <!-- 实验选择器 -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-xl font-semibold text-white mb-4">选择要对比的实验</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">项目筛选</label>
+                    <select id="project-filter" class="w-full experiment-selector">
+                        <option value="">所有项目</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">状态筛选</label>
+                    <select id="status-filter" class="w-full experiment-selector">
+                        <option value="">所有状态</option>
+                        <option value="running">运行中</option>
+                        <option value="finished">已完成</option>
+                        <option value="failed">失败</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-end">
+                    <button id="load-experiments" class="btn-primary">
+                        <i class="fas fa-search mr-2"></i>加载实验
+                    </button>
+                </div>
+            </div>
+            
+            <div id="experiment-list" class="max-h-96 overflow-y-auto">
+                <!-- 动态生成实验列表 -->
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button id="start-comparison" class="btn-primary" disabled>
+                    <i class="fas fa-chart-line mr-2"></i>开始对比分析
+                </button>
+            </div>
+        </div>
+
+        <!-- 对比结果 -->
+        <div id="comparison-results" class="hidden">
+            <!-- 对比图表 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">训练损失对比</h3>
+                    <div id="loss-comparison-chart" style="height: 400px;"></div>
+                </div>
+                
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">验证准确率对比</h3>
+                    <div id="accuracy-comparison-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+            
+            <!-- 对比表格 -->
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold text-white mb-4">实验对比表格</h3>
+                <div class="overflow-x-auto">
+                    <table id="comparison-table" class="comparison-table">
+                        <!-- 动态生成对比表格 -->
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 配置对比 -->
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold text-white mb-4">配置对比</h3>
+                <div id="config-comparison" class="overflow-x-auto">
+                    <!-- 动态生成配置对比 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="text-center py-12">
+            <i class="fas fa-balance-scale text-6xl text-gray-600 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-300 mb-2">暂无对比数据</h3>
+            <p class="text-gray-500 mb-6">请选择至少两个实验进行对比分析</p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/compare.js"></script>
+</body>
+</html>

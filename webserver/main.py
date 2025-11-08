@@ -1,5 +1,6 @@
 """
-WandB Local Web Server - FastAPI Backend
+WandB Local Web Server - 重构版本
+适配python3 examples/*.py生成的输出格式
 """
 
 import os
@@ -9,7 +10,7 @@ import asyncio
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -19,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import aiofiles
 
-# 添加父目录到路径，以便导入wandb_local
+# 添加父目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from wandb_local.utils import list_runs, get_summary, get_history, load_run
@@ -40,20 +41,23 @@ class ExperimentData:
     tags: List[str] = None
     notes: str = ""
     path: str = ""
+    metrics: Dict[str, Any] = None
+    media_files: List[Dict[str, Any]] = None
+    artifacts: List[Dict[str, Any]] = None
 
 
 class ExperimentManager:
     """实验管理器 - 自动发现和加载实验"""
     
     def __init__(self, base_dir: str = "experiments"):
-        self.base_dir = base_dir
-        print(self.base_dir)
+        self.base_dir = Path(base_dir)
         self.experiments: Dict[str, ExperimentData] = {}
         self.websocket_connections: List[WebSocket] = []
         self._running = True
         
     async def start_auto_discovery(self):
         """启动自动发现机制"""
+        print(f"启动实验自动发现，监控目录: {self.base_dir}")
         while self._running:
             await self._discover_experiments()
             await asyncio.sleep(5)  # 每5秒检查一次
@@ -65,7 +69,7 @@ class ExperimentManager:
     async def _discover_experiments(self):
         """发现新的实验"""
         try:
-            runs = list_runs(base_dir=self.base_dir)
+            runs = list_runs(base_dir=str(self.base_dir))
             
             for run_info in runs:
                 run_id = run_info["run_id"]
@@ -89,7 +93,7 @@ class ExperimentManager:
         """加载单个实验的完整数据"""
         try:
             # 获取实验基本信息
-            runs = list_runs(base_dir=self.base_dir)
+            runs = list_runs(base_dir=str(self.base_dir))
             run_info = next((r for r in runs if r["run_id"] == run_id), None)
             
             if not run_info:
@@ -98,9 +102,14 @@ class ExperimentManager:
             # 加载配置和摘要
             config = {}
             summary = {}
-            metadata_path = os.path.join(run_info["path"], "wandb-metadata.json")
+            history = []
+            metadata = {}
+            tags = []
+            notes = ""
             
-            if os.path.exists(metadata_path):
+            # 加载元数据
+            metadata_path = Path(run_info["path"]) / "wandb-metadata.json"
+            if metadata_path.exists():
                 async with aiofiles.open(metadata_path, 'r') as f:
                     content = await f.read()
                     metadata = json.loads(content)
@@ -108,19 +117,33 @@ class ExperimentManager:
                     tags = metadata.get("tags", [])
                     notes = metadata.get("notes", "")
                     
+            # 加载配置
+            config_path = Path(run_info["path"]) / "config.json"
+            if config_path.exists():
+                async with aiofiles.open(config_path, 'r') as f:
+                    content = await f.read()
+                    config = json.loads(content)
+                    
             # 加载摘要
             try:
-                summary = get_summary(run_id, base_dir=self.base_dir)
+                summary = get_summary(run_id, base_dir=str(self.base_dir))
             except:
                 summary = {}
                 
             # 加载历史数据
-            history = []
             try:
-                history = get_history(run_id, base_dir=self.base_dir)
-            except:
-                pass
+                history_raw = get_history(run_id, base_dir=str(self.base_dir))
+                history = self._process_history_data(history_raw)
+            except Exception as e:
+                print(f"Error loading history for {run_id}: {e}")
+                history = []
                 
+            # 加载媒体文件
+            media_files = await self._load_media_files(Path(run_info["path"]))
+            
+            # 加载artifacts
+            artifacts = await self._load_artifacts(Path(run_info["path"]))
+            
             return ExperimentData(
                 run_id=run_id,
                 project=run_info.get("project", "unknown"),
@@ -133,19 +156,122 @@ class ExperimentManager:
                 history=history,
                 tags=tags,
                 notes=notes,
-                path=run_info["path"]
+                path=run_info["path"],
+                metrics=self._extract_metrics(summary),
+                media_files=media_files,
+                artifacts=artifacts
             )
             
         except Exception as e:
             print(f"Error loading experiment {run_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
+            
+    def _process_history_data(self, history_raw: List[Dict]) -> List[Dict[str, Any]]:
+        """处理历史数据，转换为标准格式"""
+        processed_history = []
+        
+        for entry in history_raw:
+            if isinstance(entry, dict):
+                # 处理table格式的历史数据
+                if entry.get("_type") == "table":
+                    columns = entry.get("columns", [])
+                    data = entry.get("data", [])
+                    
+                    for row in data:
+                        if len(row) == len(columns):
+                            processed_entry = dict(zip(columns, row))
+                            # 过滤掉全零的行
+                            if any(val != 0 for val in row[1:] if isinstance(val, (int, float))):
+                                processed_history.append(processed_entry)
+                else:
+                    # 处理标准格式的历史数据
+                    processed_history.append(entry)
+                    
+        return processed_history
+        
+    def _extract_metrics(self, summary: Dict[str, Any]) -> Dict[str, Any]:
+        """从摘要中提取关键指标"""
+        metrics = {}
+        
+        # 提取损失相关指标
+        for key, value in summary.items():
+            if any(term in key.lower() for term in ['loss', 'accuracy', 'metric', 'score']):
+                if isinstance(value, (int, float)):
+                    metrics[key] = value
+                    
+        return metrics
+        
+    async def _load_media_files(self, experiment_path: Path) -> List[Dict[str, Any]]:
+        """加载媒体文件"""
+        media_files = []
+        media_dir = experiment_path / "media"
+        
+        if media_dir.exists():
+            for file_path in media_dir.rglob("*"):
+                if file_path.is_file():
+                    rel_path = file_path.relative_to(media_dir)
+                    media_files.append({
+                        "name": file_path.name,
+                        "path": str(rel_path),
+                        "type": self._get_file_type(file_path.name),
+                        "size": file_path.stat().st_size,
+                        "modified": file_path.stat().st_mtime
+                    })
+                    
+        return media_files
+        
+    async def _load_artifacts(self, experiment_path: Path) -> List[Dict[str, Any]]:
+        """加载artifacts"""
+        artifacts = []
+        artifacts_dir = experiment_path / "artifacts"
+        
+        if artifacts_dir.exists():
+            for artifact_path in artifacts_dir.iterdir():
+                if artifact_path.is_dir():
+                    metadata_path = artifact_path / "artifact_metadata.json"
+                    metadata = {}
+                    if metadata_path.exists():
+                        async with aiofiles.open(metadata_path, 'r') as f:
+                            content = await f.read()
+                            metadata = json.loads(content)
+                            
+                    artifacts.append({
+                        "name": artifact_path.name,
+                        "path": str(artifact_path),
+                        "metadata": metadata
+                    })
+                    
+        return artifacts
+        
+    def _get_file_type(self, filename: str) -> str:
+        """获取文件类型"""
+        ext = Path(filename).suffix.lower()
+        
+        image_exts = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
+        audio_exts = ['.wav', '.mp3', '.ogg', '.flac', '.aac']
+        video_exts = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm']
+        
+        if ext in image_exts:
+            return "image"
+        elif ext in audio_exts:
+            return "audio"
+        elif ext in video_exts:
+            return "video"
+        elif ext == '.json':
+            return "json"
+        elif ext in ['.pth', '.pt', '.pkl', '.pickle']:
+            return "model"
+        else:
+            return "other"
             
     async def _notify_new_experiment(self, experiment: ExperimentData):
         """通知WebSocket客户端新实验"""
         if self.websocket_connections:
             message = {
                 "type": "new_experiment",
-                "data": experiment.__dict__
+                "data": asdict(experiment)
             }
             
             disconnected = []
@@ -198,7 +324,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="WandB Local Web Server",
     description="Web interface for WandB Local experiment tracking",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -221,6 +347,18 @@ async def dashboard():
     return FileResponse("templates/index.html")
 
 
+@app.get("/experiment/{run_id}", response_class=HTMLResponse)
+async def experiment_detail(run_id: str):
+    """实验详情页面"""
+    return FileResponse("templates/experiment-detail.html")
+
+
+@app.get("/compare", response_class=HTMLResponse)
+async def compare_experiments():
+    """实验对比页面"""
+    return FileResponse("templates/compare.html")
+
+
 @app.get("/api/experiments")
 async def get_experiments(
     project: Optional[str] = None,
@@ -240,7 +378,7 @@ async def get_experiments(
     experiments = experiments[:limit]
     
     return {
-        "experiments": [exp.__dict__ for exp in experiments],
+        "experiments": [asdict(exp) for exp in experiments],
         "total": len(experiments)
     }
 
@@ -252,7 +390,7 @@ async def get_experiment(run_id: str):
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
         
-    return experiment.__dict__
+    return asdict(experiment)
 
 
 @app.get("/api/projects")
@@ -289,23 +427,7 @@ async def get_experiment_media(run_id: str):
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
         
-    media_dir = os.path.join(experiment.path, "media")
-    media_files = []
-    
-    if os.path.exists(media_dir):
-        for root, dirs, files in os.walk(media_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
-                rel_path = os.path.relpath(file_path, media_dir)
-                media_files.append({
-                    "name": file,
-                    "path": rel_path,
-                    "type": _get_file_type(file),
-                    "size": os.path.getsize(file_path),
-                    "modified": os.path.getmtime(file_path)
-                })
-                
-    return {"media": media_files}
+    return {"media": experiment.media_files}
 
 
 @app.get("/api/experiments/{run_id}/artifacts")
@@ -315,27 +437,7 @@ async def get_experiment_artifacts(run_id: str):
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
         
-    artifacts_dir = os.path.join(experiment.path, "artifacts")
-    artifacts = []
-    
-    if os.path.exists(artifacts_dir):
-        for artifact_name in os.listdir(artifacts_dir):
-            artifact_path = os.path.join(artifacts_dir, artifact_name)
-            if os.path.isdir(artifact_path):
-                metadata_path = os.path.join(artifact_path, "artifact_metadata.json")
-                metadata = {}
-                if os.path.exists(metadata_path):
-                    async with aiofiles.open(metadata_path, 'r') as f:
-                        content = await f.read()
-                        metadata = json.loads(content)
-                        
-                artifacts.append({
-                    "name": artifact_name,
-                    "path": artifact_path,
-                    "metadata": metadata
-                })
-                
-    return {"artifacts": artifacts}
+    return {"artifacts": experiment.artifacts}
 
 
 @app.post("/api/experiments/{run_id}/refresh")
@@ -352,11 +454,28 @@ async def get_experiment_file(run_id: str, file_path: str):
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
         
-    full_path = os.path.join(experiment.path, file_path)
-    if not os.path.exists(full_path):
+    full_path = Path(experiment.path) / file_path
+    if not full_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
         
-    return FileResponse(full_path)
+    return FileResponse(str(full_path))
+
+
+@app.post("/api/experiments/compare")
+async def compare_experiments(request: Dict[str, Any]):
+    """对比多个实验"""
+    run_ids = request.get("run_ids", [])
+    
+    if len(run_ids) < 2:
+        raise HTTPException(status_code=400, detail="至少需要选择两个实验进行对比")
+        
+    experiments = []
+    for run_id in run_ids:
+        experiment = experiment_manager.get_experiment(run_id)
+        if experiment:
+            experiments.append(asdict(experiment))
+            
+    return {"experiments": experiments}
 
 
 @app.websocket("/ws")
@@ -372,26 +491,6 @@ async def websocket_endpoint(websocket: WebSocket):
             
     except WebSocketDisconnect:
         experiment_manager.websocket_connections.remove(websocket)
-
-
-def _get_file_type(filename: str) -> str:
-    """获取文件类型"""
-    ext = os.path.splitext(filename)[1].lower()
-    
-    image_exts = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
-    audio_exts = ['.wav', '.mp3', '.ogg', '.flac', '.aac']
-    video_exts = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm']
-    
-    if ext in image_exts:
-        return "image"
-    elif ext in audio_exts:
-        return "audio"
-    elif ext in video_exts:
-        return "video"
-    elif ext == '.json':
-        return "json"
-    else:
-        return "other"
 
 
 if __name__ == "__main__":
